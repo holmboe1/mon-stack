@@ -1,1 +1,77 @@
+version: "3.9"
 
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - overlay-observability
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+    networks:
+      - overlay-observability
+    deploy:
+      replicas: 1
+
+  promtail:
+    image: grafana/promtail:latest
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - overlay-observability
+    deploy:
+      mode: global
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=SvaneveienNR1
+      - GF_SERVER_ROOT_URL=http://grafana.local/
+      - GF_DATABASE_TYPE=postgres
+      - GF_DATABASE_HOST=grafana-db_grafana-db:5432
+      - GF_DATABASE_NAME=grafana
+      - GF_DATABASE_USER=grafana
+      - GF_DATABASE_PASSWORD=SvaneveienNR1
+      - GF_DATABASE_SSL_MODE=disable
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - overlay-observability
+    deploy:
+      replicas: 1
+
+networks:
+  overlay-observability:
+    external: true
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
