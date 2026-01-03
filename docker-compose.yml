@@ -46,20 +46,20 @@ services:
     deploy:
       mode: global
 
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=SvaneveienNR1
-      - GF_SERVER_ROOT_URL=http://grafana.local/
-      - GF_DATABASE_TYPE=postgres
-      - GF_DATABASE_HOST=grafana-db_grafana-db:5432
-      - GF_DATABASE_NAME=grafana
-      - GF_DATABASE_USER=grafana
-      - GF_DATABASE_PASSWORD=SvaneveienNR1
-      - GF_DATABASE_SSL_MODE=disable
+grafana:
+  image: grafana/grafana:latest
+  ports:
+    - "3000:3000"
+  environment:
+    - GF_SECURITY_ADMIN_USER=admin
+    - GF_SECURITY_ADMIN_PASSWORD=SvaneveienNR1
+    - GF_SERVER_ROOT_URL=http://grafana.local/
+    - GF_DATABASE_TYPE=postgres
+    - GF_DATABASE_HOST=grafana-db_grafana-db:5432
+    - GF_DATABASE_NAME=grafana
+    - GF_DATABASE_USER=grafana
+    - GF_DATABASE_PASSWORD=SvaneveienNR1
+    - GF_DATABASE_SSL_MODE=disable
     volumes:
       - grafana-data:/var/lib/grafana
     networks:
