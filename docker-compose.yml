@@ -1,5 +1,4 @@
 version: "3.9"
-
 services:
   grafana-db:
     image: postgres:16
