@@ -45,6 +45,21 @@ services:
     deploy:
       replicas: 1
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - '--path.rootfs=/host'
+    ports:
+      - '9100:9100'
+    volumes:
+      - /:/host:ro,rslave
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+    networks:
+      - overlay-observability
+
 networks:
   overlay-observability:
     external: true
