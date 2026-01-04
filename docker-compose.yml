@@ -16,10 +16,27 @@ services:
     deploy:
       replicas: 1
 
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "9090:9090"
+    volumes:
+      # enkel config-fil, se neste punkt
+      - /opt/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - overlay-observability
+    deploy:
+      replicas: 1
+
 networks:
   overlay-observability:
     external: true
 
 volumes:
   grafana-data:
-
+  prometheus-data:
