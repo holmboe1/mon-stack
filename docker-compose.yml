@@ -57,7 +57,6 @@ services:
       - monitoring
     volumes:
       - loki-data:/loki
-    # bruker default local-config.yaml i imaget
 
   promtail:
     image: grafana/promtail:latest
@@ -125,7 +124,3 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-volumes:
-  grafana-data:
-  prometheus-data:
-  loki-data:
