@@ -1,82 +1,130 @@
 version: "3.9"
 
+networks:
+  monitoring:
+    driver: overlay
+    attachable: true
+
+volumes:
+  grafana-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /ceph/monitoring/grafana
+  prometheus-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /ceph/monitoring/prometheus
+  loki-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /ceph/monitoring/loki
+
 services:
   grafana:
     image: grafana/grafana:latest
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 512M
     ports:
       - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=SvaneveienNR1
-      - GF_SERVER_ROOT_URL=http://grafana.local/
+    networks:
+      - monitoring
     volumes:
       - grafana-data:/var/lib/grafana
-    networks:
-      - overlay-observability
-    deploy:
-      replicas: 1
-
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-    ports:
-      - "9090:9090"
-    volumes:
-      - /opt/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    networks:
-      - overlay-observability
-    deploy:
-      replicas: 1
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      - loki
 
   loki:
-    image: grafana/loki:2.2.1
+    image: grafana/loki:latest
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
+    networks:
+      - monitoring
     volumes:
       - loki-data:/loki
-      - /opt/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
-    networks:
-      - overlay-observability
-    deploy:
-      replicas: 1
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    command:
-      - '--path.rootfs=/host'
-    ports:
-      - "9100:9100"
-    volumes:
-      - /:/host:ro,rslave
-    networks:
-      - overlay-observability
-    deploy:
-      mode: global
-      restart_policy:
-        condition: any
+    # bruker default local-config.yaml i imaget
 
   promtail:
     image: grafana/promtail:latest
     command: -config.file=/etc/promtail/config.yml
-    volumes:
-      - /opt/promtail/config.yml:/etc/promtail/config.yml:ro
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - overlay-observability
+      - monitoring
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /etc/promtail/config.yml:/etc/promtail/config.yml:ro
+    depends_on:
+      - loki
+
+  prometheus:
+    image: prom/prometheus:latest
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 512M
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+    volumes:
+      - prometheus-data:/prometheus
+      - /ceph/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
     deploy:
       mode: global
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - monitoring
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
 
-networks:
-  overlay-observability:
-    external: true
-
+  node-exporter:
+    image: prom/node-exporter:latest
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)"
+      - "--no-collector.ipvs"
+    networks:
+      - monitoring
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
 volumes:
   grafana-data:
   prometheus-data:
